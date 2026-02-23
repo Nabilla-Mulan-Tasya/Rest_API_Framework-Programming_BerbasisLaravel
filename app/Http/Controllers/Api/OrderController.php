@@ -4,89 +4,94 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\OrderItem;
+use App\Models\Produk;
 use App\Http\Requests\StoreOrderRequest;
-use App\Http\Requests\UpdateOrderRequest;
 use App\Http\Resources\OrderResource;
+use App\Http\Resources\OrderCollection;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class OrderController extends Controller
 {
     public function index()
     {
-        $orders = Order::paginate(10);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'List Orders',
-            'data' => OrderResource::collection($orders)
-        ]);
+        $orders = Order::with('user', 'items.produk')->latest()->get();
+        return new OrderCollection($orders);
     }
 
     public function store(StoreOrderRequest $request)
     {
-        // valid data dari request
-        $data = $request->validated();
+        DB::beginTransaction();
 
-        // hitung total dari items (override total_price jika diberikan)
-        $itemsInput = $data['items'];
-        $calculatedTotal = 0;
-        foreach ($itemsInput as $it) {
-            $calculatedTotal += (float)$it['quantity'] * (float)$it['unit_price'];
+        try {
+            $order = Order::create([
+                'user_id' => $request->user_id,
+                'order_code' => 'ORD-' . time(),
+                'total_price' => 0,
+                'status' => 'pending',
+            ]);
+
+            $total = 0;
+
+            foreach ($request->items as $item) {
+                $produk = Produk::findOrFail($item['produk_id']);
+
+                $subtotal = $produk->harga * $item['quantity'];
+                $total += $subtotal;
+
+                OrderItem::create([
+                    'order_id' => $order->id,
+                    'produk_id' => $produk->id,
+                    'quantity' => $item['quantity'],
+                    'unit_price' => $produk->harga,
+                    'subtotal' => $subtotal,
+                ]);
+            }
+
+            $order->update([
+                'total_price' => $total
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Order berhasil dibuat',
+                'data' => new OrderResource($order->load('user', 'items.produk'))
+            ], 201);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal membuat order',
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        // buat order
-        $order = Order::create([
-            'user_id' => $data['user_id'],
-            'order_code' => $data['order_code'],
-            'total_price' => $calculatedTotal,
-            'status' => $data['status'] ?? 'pending',
-        ]);
-
-        // siapkan items untuk insert
-        $itemsToInsert = [];
-        foreach ($itemsInput as $it) {
-            $itemsToInsert[] = [
-                'produk_id' => $it['produk_id'],
-                'quantity' => $it['quantity'],
-                'unit_price' => $it['unit_price'],
-                'subtotal' => (float)$it['quantity'] * (float)$it['unit_price'],
-                'created_at' => now(),
-                'updated_at' => now(),
-            ];
-        }
-
-        // insert items via relationship
-        $order->items()->createMany($itemsToInsert);
-
-        // load items relation for response
-        $order->load('items.produk');
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Order created',
-            'data' => new OrderResource($order),
-        ], 201);
     }
-    
+
     public function show($id)
     {
-        $order = Order::findOrFail($id);
-
-        return response()->json([
-            'success' => true,
-            'data' => new OrderResource($order)
-        ]);
+        $order = Order::with('user', 'items.produk')->findOrFail($id);
+        return new OrderResource($order);
     }
 
-    public function update(UpdateOrderRequest $request, $id)
+    public function updateStatus(Request $request, $id)
     {
+        $request->validate([
+            'status' => 'required|in:pending,paid,shipped,completed,cancelled'
+        ]);
+
         $order = Order::findOrFail($id);
-        $order->update($request->validated());
+        $order->update([
+            'status' => $request->status
+        ]);
 
         return response()->json([
-            'success' => true,
-            'message' => 'Order updated',
-            'data' => new OrderResource($order)
+            'message' => 'Status berhasil diupdate',
+            'data' => $order
         ]);
     }
 
@@ -96,8 +101,7 @@ class OrderController extends Controller
         $order->delete();
 
         return response()->json([
-            'success' => true,
-            'message' => 'Order deleted'
+            'message' => 'Order berhasil dihapus'
         ]);
     }
 }

@@ -2,22 +2,40 @@
 
 namespace App\Http\Resources;
 
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use App\Http\Resources\OrderItemResource;
 
 class OrderResource extends JsonResource
 {
-    public function toArray($request)
+    /**
+     * Transform the resource into an array.
+     *
+     * @return array<string, mixed>
+     */
+    public function toArray($request): array
     {
         return [
             'id' => $this->id,
-            'user_id' => $this->user_id,
             'order_code' => $this->order_code,
-            'total_price' => (float) $this->total_price,
             'status' => $this->status,
-            'items' => OrderItemResource::collection($this->whenLoaded('items')),
-            'created_at' => $this->created_at,
-            'updated_at' => $this->updated_at,
+            'total_price' => $this->total_price,
+            'created_at' => $this->created_at->format('Y-m-d H:i:s'),
+
+            'user' => [
+                'id' => $this->user->id,
+                'name' => $this->user->name,
+                'email' => $this->user->email,
+            ],
+
+            'items' => $this->items->map(function ($item) {
+                return [
+                    'produk_id' => $item->produk->id,
+                    'produk_name' => $item->produk->namaBarang ?? null,
+                    'price' => $item->unit_price,
+                    'quantity' => $item->quantity,
+                    'subtotal' => $item->subtotal,
+                ];
+            }),
         ];
     }
 }
