@@ -10,16 +10,81 @@ use Illuminate\Http\Request;
 
 class ProdukController extends Controller
 {
-    public function index()
-    {
-        $produk = Produk::paginate(10);
+    public function index(Request $request)
+{
+    $query = Produk::query();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'List Produk',
-            'data' => ProdukResource::collection($produk)
-        ], 200);
+    // SEARCH
+    if ($request->has('search')) {
+        $search = $request->search;
+
+        $query->where('namaBarang', 'like', "%{$search}%")
+              ->orWhere('kodeBarang', 'like', "%{$search}%");
     }
+
+    // FILTER KATEGORI
+    if ($request->has('kategori')) {
+        $query->where('kategori', $request->kategori);
+    }
+
+    // SORTING HARGA
+    if ($request->has('sort')) {
+        $sort = $request->sort;
+
+        if ($sort == 'harga_asc') {
+            $query->orderBy('harga', 'asc');
+        }
+
+        if ($sort == 'harga_desc') {
+            $query->orderBy('harga', 'desc');
+        }
+    } else {
+        $query->latest();
+    }
+
+    $produk = $query->paginate(10);
+
+    return response()->json([
+        'success' => true,
+        'message' => 'List Produk',
+        'data' => ProdukResource::collection($produk),
+        'pagination' => [
+            'current_page' => $produk->currentPage(),
+            'last_page' => $produk->lastPage(),
+            'per_page' => $produk->perPage(),
+            'total' => $produk->total(),
+            'from' => $produk->firstItem(),
+            'to' => $produk->lastItem(),
+            'first_page_url' => $produk->url(1),
+            'last_page_url' => $produk->url($produk->lastPage()),
+            'next_page_url' => $produk->nextPageUrl(),
+            'prev_page_url' => $produk->previousPageUrl(),
+        ]
+    ], 200);
+}
+    // public function index()
+    // {
+    //     $produk = Produk::paginate(10);
+
+    //     return response()->json([
+    //         'success' => true,
+    //         'message' => 'List Produk',
+    //         'data' => ProdukResource::collection($produk),
+    //         'pagination' => [
+    //         'current_page' => $produk->currentPage(),
+    //         'last_page' => $produk->lastPage(),
+    //         'per_page' => $produk->perPage(),
+    //         'total' => $produk->total(),
+    //         'from' => $produk->firstItem(),
+    //         'to' => $produk->lastItem(),
+
+    //         'first_page_url' => $produk->url(1),
+    //         'last_page_url' => $produk->url($produk->lastPage()),
+    //         'next_page_url' => $produk->nextPageUrl(),
+    //         'prev_page_url' => $produk->previousPageUrl(),
+    //         ]
+    //     ], 200);
+    // }
 
     public function store(StoreProdukRequest $request)
     {
