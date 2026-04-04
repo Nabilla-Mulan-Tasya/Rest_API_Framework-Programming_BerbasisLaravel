@@ -10,7 +10,12 @@ use App\Http\Controllers\AuthController;
 
 Route::apiResource('users', UserApiController::class);
 Route::apiResource('books', BookController::class);
+
 Route::apiResource('produks', ProdukController::class);
+Route::post('produks/{id}/images', [ProdukController::class, 'uploadImages']);
+Route::post('produks/{id}/images/update', [ProdukController::class, 'updateImages']);
+Route::delete('produk-images/{id}', [ProdukController::class, 'deleteImage']);
+
 Route::apiResource('orders', OrderController::class);
 Route::put('orders/{id}/status', [OrderController::class, 'updateStatus']);
 
@@ -19,10 +24,9 @@ Route::post('/login', [AuthController::class, 'login']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', function (Request $request) {
-        // Contoh: return data user yang login
+        
         return $request->user();
     });
 
-    Route::post('/logout', [AuthController::class, 'logout']); // Optional: revoke token
-    // Tambah route API lain di sini, misal Route::apiResource('posts', PostController::class);
+    Route::post('/logout', [AuthController::class, 'logout']);
 });
