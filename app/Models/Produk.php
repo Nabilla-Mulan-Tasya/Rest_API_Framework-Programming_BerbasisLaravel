@@ -8,8 +8,8 @@ use App\Models\ProdukImage;
 class Produk extends Model
 {
     protected $fillable = [
-        'kode_barang',
-        'nama_barang',
+        'kodeBarang',
+        'namaBarang',
         'harga',
         'stok',
         'deskripsi',
