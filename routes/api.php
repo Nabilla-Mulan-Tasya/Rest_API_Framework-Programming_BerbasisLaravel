@@ -16,8 +16,7 @@ Route::post('produks/{id}/images', [ProdukController::class, 'uploadImages']);
 Route::post('produks/{id}/images/update', [ProdukController::class, 'updateImages']);
 Route::delete('produk-images/{id}', [ProdukController::class, 'deleteImage']);
 
-Route::apiResource('orders', OrderController::class);
-Route::put('orders/{id}/status', [OrderController::class, 'updateStatus']);
+
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
@@ -27,6 +26,9 @@ Route::middleware('auth:sanctum')->group(function () {
         
         return $request->user();
     });
+
+    Route::apiResource('orders', OrderController::class);
+    Route::put('orders/{id}/status', [OrderController::class, 'updateStatus']);
 
     Route::post('/logout', [AuthController::class, 'logout']);
 });

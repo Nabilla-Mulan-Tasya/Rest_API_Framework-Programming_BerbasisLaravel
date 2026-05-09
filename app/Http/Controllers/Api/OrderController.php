@@ -26,7 +26,7 @@ class OrderController extends Controller
 
         try {
             $order = Order::create([
-                'user_id' => $request->user_id,
+                'user_id' => auth()->id(),
                 'order_code' => 'ORD-' . time(),
                 'total_price' => 0,
                 'status' => 'pending',
